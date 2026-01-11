@@ -14,11 +14,23 @@ $config = [
     ]
 ];
 
-function generateWithOpenAI($prompt, $size, $config) {
+// Size descriptions for better aspect ratio support
+$sizeMap = [
+    '1024x1024' => 'square (1024x1024)',
+    '1280x720' => 'wide landscape (1280x720, 16:9)',
+    '720x1280' => 'tall portrait (720x1280, 9:16)',
+    '1216x896' => 'landscape (1216x896, 4:3)'
+];
+
+function generateWithOpenAI($prompt, $size, $config, $sizeMap) {
+    // Add size info to prompt for better results
+    $sizeDesc = $sizeMap[$size] ?? $size;
+    $enhancedPrompt = $prompt . ". Generate this image in " . $sizeDesc . " aspect ratio.";
+
     $data = [
         'model' => $config['model'],
         'messages' => [
-            ['role' => 'user', 'content' => $prompt]
+            ['role' => 'user', 'content' => $enhancedPrompt]
         ],
         'size' => $size
     ];
@@ -155,7 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $content = generateWithGemini($prompt, $config['gemini']);
             $imageData = extractImage($content);
         } else {
-            $content = generateWithOpenAI($prompt, $size, $config['openai']);
+            $content = generateWithOpenAI($prompt, $size, $config['openai'], $sizeMap);
             $imageData = extractImage($content);
         }
 
