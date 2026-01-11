@@ -27,12 +27,22 @@ openai_client = OpenAI(
 
 def generate_with_openai(prompt, size):
     """Generate image with OpenAI API"""
+    # Add size info to prompt for better results
+    size_map = {
+        '1024x1024': 'square (1024x1024)',
+        '1280x720': 'wide landscape (1280x720, 16:9)',
+        '720x1280': 'tall portrait (720x1280, 9:16)',
+        '1216x896': 'landscape (1216x896, 4:3)'
+    }
+    size_desc = size_map.get(size, size)
+    enhanced_prompt = f"{prompt}. Generate this image in {size_desc} aspect ratio."
+
     response = openai_client.chat.completions.create(
         model=CONFIG['openai']['model'],
         extra_body={"size": size},
         messages=[{
             "role": "user",
-            "content": prompt
+            "content": enhanced_prompt
         }]
     )
     return response.choices[0].message.content
