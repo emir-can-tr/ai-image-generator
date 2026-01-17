@@ -6,7 +6,7 @@ import re
 
 app = Flask(__name__)
 
-# API Settings
+# API Ayarları
 CONFIG = {
     'openai': {
         'base_url': 'http://127.0.0.1:8045/v1',
@@ -26,29 +26,28 @@ openai_client = OpenAI(
 )
 
 def generate_with_openai(prompt, size):
-    """Generate image with OpenAI API"""
-    # Add size info to prompt for better results
-    size_map = {
-        '1024x1024': 'square (1024x1024)',
-        '1280x720': 'wide landscape (1280x720, 16:9)',
-        '720x1280': 'tall portrait (720x1280, 9:16)',
-        '1216x896': 'landscape (1216x896, 4:3)'
-    }
-    size_desc = size_map.get(size, size)
-    enhanced_prompt = f"{prompt}. Generate this image in {size_desc} aspect ratio."
-
+    """OpenAI API ile görsel oluştur"""
+    # Boyut bazlı model mapping
+    model = CONFIG['openai']['model']
+    if size == '1280x720':
+        model += '-16-9'
+    elif size == '720x1280':
+        model += '-9-16'
+    elif size == '1216x896':
+        model += '-4-3'
+    
     response = openai_client.chat.completions.create(
-        model=CONFIG['openai']['model'],
+        model=model,
         extra_body={"size": size},
         messages=[{
             "role": "user",
-            "content": enhanced_prompt
+            "content": prompt
         }]
     )
     return response.choices[0].message.content
 
 def generate_with_gemini(prompt):
-    """Generate image with Gemini API"""
+    """Gemini API ile görsel oluştur"""
     url = f"{CONFIG['gemini']['base_url']}?key={CONFIG['gemini']['api_key']}"
 
     payload = {
@@ -68,7 +67,7 @@ def generate_with_gemini(prompt):
 
     result = response.json()
 
-    # Extract image data from Gemini response
+    # Gemini yanıtından görsel verisini çıkar
     if 'candidates' in result and result['candidates']:
         parts = result['candidates'][0].get('content', {}).get('parts', [])
         for part in parts:
@@ -77,29 +76,30 @@ def generate_with_gemini(prompt):
                 base64_data = part['inlineData']['data']
                 return f'data:{mime_type};base64,{base64_data}'
 
-    raise Exception('Could not generate image')
+    raise Exception('Görsel oluşturulamadı')
 
 def extract_image(content):
-    """Extract image data from content"""
-    # Base64 data URI format
+    """İçerikten görsel verisini çıkar"""
+    # Base64 data URI formatı
     base64_match = re.search(r'data:image/[^;]+;base64,[A-Za-z0-9+/=]+', content)
     if base64_match:
         return {'image': base64_match.group(0), 'type': 'base64'}
 
-    # Markdown format base64
+    # Markdown formatında base64
     md_match = re.search(r'!\[.*?\]\((data:image/[^;]+;base64,[A-Za-z0-9+/=]+)\)', content)
     if md_match:
         return {'image': md_match.group(1), 'type': 'base64'}
 
-    # URL format
+    # URL formatı
     url_match = re.search(r'https?://[^\s\)]+\.(png|jpg|jpeg|gif|webp)', content, re.IGNORECASE)
     if url_match:
         return {'image': url_match.group(0), 'type': 'url'}
 
-    # Raw base64 (without data: prefix)
+    # Ham base64 (data: prefix olmadan)
     if re.match(r'^[A-Za-z0-9+/=]{100,}$', content.strip()):
         return {'image': f'data:image/png;base64,{content.strip()}', 'type': 'base64'}
 
+    # Olduğu gibi döndür
     return {'image': content, 'type': 'raw'}
 
 @app.route('/')
@@ -115,7 +115,7 @@ def generate():
         provider = data.get('provider', 'gemini')
 
         if not prompt:
-            return jsonify({'error': 'Prompt cannot be empty'}), 400
+            return jsonify({'error': 'Prompt boş olamaz'}), 400
 
         if provider == 'gemini':
             content = generate_with_gemini(prompt)
