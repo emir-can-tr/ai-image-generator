@@ -6,6 +6,7 @@
     <title>AI Image Generator</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%237c3aed'/><stop offset='100%25' style='stop-color:%23ec4899'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='url(%23g)'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white'>✨</text></svg>">
     <style>
         * {
             margin: 0;
@@ -597,7 +598,7 @@ Example: A cyberpunk style Tokyo street on a rainy night illuminated with neon l
 
                 <div class="controls">
                     <div class="size-wrapper">
-                        <select id="size" class="size-select">
+                        <select id="size" class="size-select" disabled title="Gemini automatically determines size">
                             <option value="1024x1024">1024 × 1024 (Square)</option>
                             <option value="1280x720">1280 × 720 (Wide)</option>
                             <option value="720x1280">720 × 1280 (Portrait)</option>
