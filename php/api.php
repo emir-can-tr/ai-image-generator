@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 
-// API Settings
+// API Ayarları
 $config = [
     'openai' => [
         'base_url' => 'http://127.0.0.1:8045/v1/chat/completions',
@@ -14,23 +14,22 @@ $config = [
     ]
 ];
 
-// Size descriptions for better aspect ratio support
-$sizeMap = [
-    '1024x1024' => 'square (1024x1024)',
-    '1280x720' => 'wide landscape (1280x720, 16:9)',
-    '720x1280' => 'tall portrait (720x1280, 9:16)',
-    '1216x896' => 'landscape (1216x896, 4:3)'
-];
-
-function generateWithOpenAI($prompt, $size, $config, $sizeMap) {
-    // Add size info to prompt for better results
-    $sizeDesc = $sizeMap[$size] ?? $size;
-    $enhancedPrompt = $prompt . ". Generate this image in " . $sizeDesc . " aspect ratio.";
+function generateWithOpenAI($prompt, $size, $config) {
+    // Boyut bazlı model mapping
+    $model = $config['model'];
+    if ($size === '1280x720') {
+        $model .= '-16-9';
+    } elseif ($size === '720x1280') {
+        $model .= '-9-16';
+    } elseif ($size === '1216x896') {
+        $model .= '-4-3';
+    }
+    // 1024x1024 varsayılan modeldir
 
     $data = [
-        'model' => $config['model'],
+        'model' => $model,
         'messages' => [
-            ['role' => 'user', 'content' => $enhancedPrompt]
+            ['role' => 'user', 'content' => $prompt]
         ],
         'size' => $size
     ];
@@ -63,7 +62,7 @@ function generateWithOpenAI($prompt, $size, $config, $sizeMap) {
     $result = json_decode($response, true);
 
     if (!isset($result['choices'][0]['message']['content'])) {
-        throw new Exception('Invalid API response');
+        throw new Exception('Geçersiz API yanıtı');
     }
 
     return $result['choices'][0]['message']['content'];
@@ -113,6 +112,7 @@ function generateWithGemini($prompt, $config) {
 
     $result = json_decode($response, true);
 
+    // Gemini yanıtından görsel verisini çıkar
     if (isset($result['candidates'][0]['content']['parts'])) {
         foreach ($result['candidates'][0]['content']['parts'] as $part) {
             if (isset($part['inlineData'])) {
@@ -123,34 +123,35 @@ function generateWithGemini($prompt, $config) {
         }
     }
 
-    throw new Exception('Could not generate image');
+    throw new Exception('Görsel oluşturulamadı');
 }
 
 function extractImage($content) {
-    // Base64 data URI format
+    // Base64 data URI formatı
     if (preg_match('/data:image\/[^;]+;base64,[A-Za-z0-9+\/=]+/', $content, $matches)) {
         return ['image' => $matches[0], 'type' => 'base64'];
     }
 
-    // Markdown format base64
+    // Markdown formatında base64
     if (preg_match('/!\[.*?\]\((data:image\/[^;]+;base64,[A-Za-z0-9+\/=]+)\)/', $content, $matches)) {
         return ['image' => $matches[1], 'type' => 'base64'];
     }
 
-    // URL format
+    // URL formatı
     if (preg_match('/https?:\/\/[^\s\)]+\.(png|jpg|jpeg|gif|webp)/i', $content, $matches)) {
         return ['image' => $matches[0], 'type' => 'url'];
     }
 
-    // Raw base64 (without data: prefix)
+    // Ham base64 (data: prefix olmadan)
     if (preg_match('/^[A-Za-z0-9+\/=]{100,}$/', trim($content))) {
         return ['image' => 'data:image/png;base64,' . trim($content), 'type' => 'base64'];
     }
 
+    // Olduğu gibi döndür
     return ['image' => $content, 'type' => 'raw'];
 }
 
-// POST request handling
+// POST isteği kontrolü
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $input = json_decode(file_get_contents('php://input'), true);
@@ -160,14 +161,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $provider = $input['provider'] ?? 'gemini';
 
         if (empty($prompt)) {
-            throw new Exception('Prompt cannot be empty');
+            throw new Exception('Prompt boş olamaz');
         }
 
         if ($provider === 'gemini') {
             $content = generateWithGemini($prompt, $config['gemini']);
             $imageData = extractImage($content);
         } else {
-            $content = generateWithOpenAI($prompt, $size, $config['openai'], $sizeMap);
+            $content = generateWithOpenAI($prompt, $size, $config['openai']);
             $imageData = extractImage($content);
         }
 
